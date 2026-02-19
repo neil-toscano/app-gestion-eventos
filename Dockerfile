@@ -1,17 +1,19 @@
-# Paso 1: Usar una imagen de Java 21 ligera (Alpine)
-FROM eclipse-temurin:21-jdk-alpine
-
-# Paso 2: Crear el directorio donde vivirán los logs en el contenedor
-RUN mkdir -p /app/logs
-
-# Paso 3: Establecer el directorio de trabajo
+# ETAPA 1: Construcción (Build)
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
 WORKDIR /app
+# Copiamos el pom y el código fuente
+COPY pom.xml .
+COPY src ./src
+# Ejecutamos el empaquetado (esto crea el target/app.jar dentro de Render)
+RUN mvn clean package -DskipTests
 
-# Paso 4: Copiar el archivo JAR (asegúrate de que el nombre coincida tras el build)
-COPY target/*.jar app.jar
+# ETAPA 2: Ejecución (Runtime)
+FROM eclipse-temurin:21-jdk-alpine
+WORKDIR /app
+RUN mkdir -p /app/logs
+# Copiamos el JAR desde la etapa de construcción anterior
+COPY --from=build /app/target/app.jar app.jar
 
-# Paso 5: Exponer el puerto que configuraste (8081)
 EXPOSE 8081
 
-# Paso 6: Comando de arranque inyectando el perfil de producción
 ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
